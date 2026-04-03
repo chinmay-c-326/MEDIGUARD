@@ -1,0 +1,198 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: #0a0f1e;
+  font-family: 'DM Sans', sans-serif;
+  color: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+}
+
+#root {
+  min-height: 100%;
+}
+
+input,
+button,
+textarea {
+  font-family: 'DM Sans', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.3);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Glass Card Utility ── */
+.glass-card {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ── Keyframe Animations ── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scanLine {
+  0% {
+    top: -2px;
+  }
+
+  100% {
+    top: 100%;
+  }
+}
+
+@keyframes wave {
+
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes spinRing {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes heartPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  14% {
+    transform: scale(1.22);
+  }
+
+  28% {
+    transform: scale(1);
+  }
+
+  42% {
+    transform: scale(1.22);
+  }
+
+  70% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseDot {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes bounceX {
+
+  0%,
+  100% {
+    transform: translateX(0) translateY(-50%);
+  }
+
+  50% {
+    transform: translateX(5px) translateY(-50%);
+  }
+}
+
+@keyframes glassShine {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ── Utility Classes ── */
+.fadeUp {
+  animation: fadeUp 0.38s ease both;
+}
+
+.fadeIn {
+  animation: fadeIn 0.3s ease both;
+}
+
+.hpulse {
+  animation: heartPulse 1.8s ease-in-out infinite;
+}
+
+.spin {
+  animation: spinRing 0.9s linear infinite;
+}
+
+.waveBar {
+  display: inline-block;
+  width: 3px;
+  border-radius: 2px;
+  background: #38bdf8;
+  margin: 0 1.5px;
+}
+
+/* ── Glass Input Styles ── */
+input:focus {
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(56, 189, 248, 0.3);
+  color: #fff;
+}
