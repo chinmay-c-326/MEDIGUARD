@@ -196,3 +196,10 @@ input:focus {
   background: rgba(56, 189, 248, 0.3);
   color: #fff;
 }
+
+/* ── Landing Page Specifics (Nested for isolation if possible, but standard for now) ── */
+.landing-hc-card {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import FloatingLines from "./FloatingLines";
+import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 
 /* ─── Constants ──────────────────────────────────────────────── */
-const SCREENS = { HOME: "home", CHAT: "chat", CAMERA: "camera", VITALS: "vitals", REPORT: "report", REMINDERS: "reminders", RESULT: "result" };
+const SCREENS = { HOME: "home", CHAT: "chat", CAMERA: "camera", VITALS: "vitals", REPORT: "report", REMINDERS: "reminders", RESULT: "result", HISTORY: "history" };
 const RED_FLAGS = [
   { keywords: ["chest pain", "chest tightness", "chest pressure"], action: "CALL 911 IMMEDIATELY — Chest pain may indicate a heart attack. Do not wait." },
   { keywords: ["can't breathe", "cannot breathe", "shortness of breath", "difficulty breathing"], action: "CALL 911 IMMEDIATELY — Breathing difficulty requires emergency care." },
@@ -38,6 +40,10 @@ const T = {
   glass: "rgba(10,15,30,0.1)",
   glassBorder: "rgba(255,255,255,0.18)",
   glassHover: "rgba(255,255,255,0.15)",
+};
+
+const LANDING_T = {
+  blue: "#00d4ff", blueDk: "#007aff", bg: "#000000", border: "#1a1a1a", text: "#ffffff", textMd: "#a1a1a1"
 };
 
 /* ─── Global CSS lives in App.css ──────────────────────── */
@@ -107,7 +113,7 @@ function EmergencyModal({ redFlag, onDismiss }) {
 }
 
 /* ─── Desktop Sidebar ────────────────────────────────────────── */
-function DesktopSidebar({ screen, setScreen, navItems }) {
+function DesktopSidebar({ screen, setScreen, navItems, handleLogout }) {
   return (
     <div style={{ width: 240, flexShrink: 0, display: "flex", flexDirection: "column", background: "rgba(10,15,30,0.75)", backdropFilter: "blur(30px) saturate(1.4)", WebkitBackdropFilter: "blur(30px) saturate(1.4)", borderRight: `1px solid ${T.glassBorder}`, height: "100vh", position: "sticky", top: 0, overflow: "hidden" }}>
       {/* Logo */}
@@ -143,17 +149,219 @@ function DesktopSidebar({ screen, setScreen, navItems }) {
         })}
       </div>
 
-      {/* Emergency */}
-      <div style={{ padding: "16px 12px", borderTop: `1px solid ${T.border}` }}>
-        <a href="tel:911" style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 12, padding: "12px 14px", textDecoration: "none", transition: "all .15s" }}
-          onMouseOver={e => { e.currentTarget.style.background = "rgba(220,38,38,0.15)"; }}
-          onMouseOut={e => { e.currentTarget.style.background = "rgba(220,38,38,0.1)"; }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(220,38,38,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#f87171", flexShrink: 0 }}>{Ico.alert}</div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171" }}>Emergency</div>
-            <div style={{ fontSize: 11, color: "rgba(248,113,113,0.6)" }}>Call 108</div>
+      {/* Logout Section */}
+      <div style={{ padding: "8px 12px", borderTop: `1px solid ${T.border}` }}>
+        <button onClick={handleLogout}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 11, border: "none", cursor: "pointer", background: "transparent", color: T.textXs, fontSize: 13, transition: "all .15s" }}
+          onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = T.red; }}
+          onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textXs; }}>
+          <div style={{ width: 32, height: 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: T.bg, flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
           </div>
-        </a>
+          Logout
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen({ onLogin }) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSuccess = async (credentialResponse) => {
+    try {
+      await onLogin(credentialResponse.credential);
+    } catch (e) {
+      console.error("Login Error:", e);
+    }
+  };
+
+  const navLinkStyle = { color: "#fff", textDecoration: "none", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "color .2s" };
+
+  return (
+    <div style={{ background: LANDING_T.bg, color: LANDING_T.text, minHeight: "100vh", fontFamily: "'DM Sans', sans-serif" }}>
+      {/* Fixed Header */}
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, height: 72, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(20px)", borderBottom: `1px solid ${LANDING_T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", zIndex: 1000 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="hpulse" style={{ width: 32, height: 32, borderRadius: "50%", background: LANDING_T.blue, display: "flex", alignItems: "center", justifyContent: "center", color: "#000" }}>{Ico.heart}</div>
+            <div style={{ fontFamily: "Playfair Display", fontSize: 20, fontWeight: 900, letterSpacing: -0.5 }}>MEDIGUARD</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <span style={navLinkStyle} onMouseOver={e => e.target.style.color = LANDING_T.blue} onMouseOut={e => e.target.style.color = "#fff"}>Login / Sign Up</span>
+            <div style={{ position: "relative" }} ref={dropdownRef}>
+              <button onClick={() => setDropdownOpen(!dropdownOpen)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", padding: 8 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+              {dropdownOpen && (
+                <div className="fadeUp" style={{ position: "absolute", top: 40, left: 0, background: "#0a0a0a", border: `1px solid ${LANDING_T.border}`, borderRadius: 8, padding: "8px 0", minWidth: 160, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                  <a href="#how-it-works" onClick={() => setDropdownOpen(false)} style={{ display: "block", padding: "10px 16px", color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 500 }} onMouseOver={e => e.target.style.background = "#111"} onMouseOut={e => e.target.style.background = "transparent"}>How it works</a>
+                  <a href="#about" onClick={() => setDropdownOpen(false)} style={{ display: "block", padding: "10px 16px", color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 500 }} onMouseOver={e => e.target.style.background = "#111"} onMouseOut={e => e.target.style.background = "transparent"}>About</a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 16 }}>
+          <a href="#how-it-works" style={navLinkStyle} onMouseOver={e => e.target.style.color = LANDING_T.blue} onMouseOut={e => e.target.style.color = "#fff"}>Features</a>
+          <a href="#about" style={navLinkStyle} onMouseOver={e => e.target.style.color = LANDING_T.blue} onMouseOut={e => e.target.style.color = "#fff"}>Technology</a>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <header style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 20px", background: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('./src/assets/landing_bg.jpg') center/cover no-repeat`, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.2)", pointerEvents: "none" }}></div>
+        <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "60vw", height: "60vw", background: `radial-gradient(circle, ${LANDING_T.blue}15 0%, transparent 70%)`, filter: "blur(80px)", pointerEvents: "none" }}></div>
+
+        <div className="fadeUp" style={{ maxWidth: 1000, position: "relative", zIndex: 10 }}>
+          <Pill style={{ marginBottom: 24, fontSize: 12, padding: "6px 16px", background: "rgba(0,212,255,0.1)", color: LANDING_T.blue, border: `1px solid ${LANDING_T.blue}33` }}>Next-Gen Medical Intelligence</Pill>
+          <h1 style={{ fontSize: "clamp(42px, 8vw, 84px)", fontWeight: 900, lineHeight: 1, letterSpacing: -2, marginBottom: 32 }}>
+            More Healthy Years. <br /><span style={{ color: LANDING_T.blue }}>Built With You.</span>
+          </h1>
+          <p style={{ fontSize: 20, color: "#fff", maxWidth: 750, margin: "0 auto 48px", lineHeight: 1.6, fontWeight: 500, textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
+            Personalized, proactive health journeys, guided by doctors and powered by AI, designed to help you move better, think clearer, and stay healthier longer.
+          </p>
+          
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+            <div style={{ background: "#111", padding: "8px", borderRadius: 12, border: "1px solid #222" }}>
+              <GoogleLogin 
+                onSuccess={handleSuccess} 
+                onError={() => console.log('Login Failed')} 
+                theme="filled_blue" 
+                text="continue_with" 
+                shape="pill" 
+              />
+            </div>
+            <p style={{ fontSize: 12, color: "#555" }}>Secure. Encrypted. Hippa-Compliant Logic Ready.</p>
+          </div>
+        </div>
+
+        <div style={{ position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)", animation: "fadeUp 1s infinite alternate" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>
+        </div>
+      </header>
+
+      {/* Features Grid */}
+      <section id="how-it-works" style={{ padding: "120px 24px", background: "#050505" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ marginBottom: 80 }}>
+            <h2 style={{ fontSize: 48, fontWeight: 900, marginBottom: 16 }}>Core Capabilities</h2>
+            <div style={{ width: 60, height: 4, background: LANDING_T.blue }}></div>
+          </div>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 32 }}>
+            {[
+              { title: "Symptom Triage", desc: "Advanced AI dialogue to assess the severity of your condition in seconds.", icon: Ico.chat },
+              { title: "Vital Monitoring", desc: "Monitor heart rate and respiratory patterns using only your camera lens.", icon: Ico.pulse },
+              { title: "Dermal Scanning", desc: "Identify potential skin issues or monitor wound healing with guided photography.", icon: Ico.cam },
+              { title: "Smart Reminders", desc: "Automated follow-ups to ensure your recovery is on the right track.", icon: Ico.bell },
+            ].map((f, i) => (
+              <div key={i} className="landing-hc-card" style={{ padding: 40, borderRadius: 16, transition: "transform .3s" }} onMouseOver={e => e.currentTarget.style.transform = "translateY(-10px)"} onMouseOut={e => e.currentTarget.style.transform = "translateY(0)"}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: `${LANDING_T.blue}10`, color: LANDING_T.blue, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24, border: `1px solid ${LANDING_T.blue}33` }}>
+                  {f.icon}
+                </div>
+                <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>{f.title}</h3>
+                <p style={{ color: LANDING_T.textMd, lineHeight: 1.6 }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" style={{ padding: "120px 24px", background: "#000", borderTop: `1px solid ${LANDING_T.border}` }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 64, alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 48, fontWeight: 900, marginBottom: 24 }}>High-End Tech. <br /><span style={{ color: LANDING_T.blue }}>Human-Centric Care.</span></h2>
+            <p style={{ fontSize: 18, color: LANDING_T.textMd, lineHeight: 1.8, marginBottom: 32 }}>
+              MediGuard isn't just an app; it's a medical-grade companion designed to bridge the gap between home care and professional medical attention. Our algorithms are trained on vast datasets to provide the most accurate triage possible.
+            </p>
+            <div style={{ display: "flex", gap: 40 }}>
+              <div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: LANDING_T.blue }}>99.9%</div>
+                <div style={{ fontSize: 12, color: "#555", textTransform: "uppercase", fontWeight: 700, letterSpacing: 1 }}>Uptime</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: LANDING_T.blue }}>256-bit</div>
+                <div style={{ fontSize: 12, color: "#555", textTransform: "uppercase", fontWeight: 700, letterSpacing: 1 }}>Encryption</div>
+              </div>
+            </div>
+          </div>
+          <div style={{ background: "#0a0a0a", border: `1px solid ${LANDING_T.border}`, borderRadius: 24, padding: 40, height: 400, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+            <div className="hpulse" style={{ width: 120, height: 120, borderRadius: "50%", background: `radial-gradient(circle, ${LANDING_T.blue}33 0%, transparent 70%)`, display: "flex", alignItems: "center", justifyContent: "center", color: LANDING_T.blue }}>
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ padding: "80px 24px", borderTop: `1px solid ${LANDING_T.border}`, textAlign: "center", background: "#050505" }}>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 24, height: 24, borderRadius: "50%", background: LANDING_T.blue, display: "flex", alignItems: "center", justifyContent: "center", color: "#000" }}>{Ico.heart}</div>
+            <div style={{ fontWeight: 900, letterSpacing: -0.5 }}>MEDIGUARD</div>
+          </div>
+          <p style={{ color: LANDING_T.textMd, fontSize: 14 }}>© 2026 MediGuard Health Tech. All rights reserved.</p>
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 24 }}>
+          <span style={{ fontSize: 12, color: "#333", cursor: "pointer" }}>Privacy Policy</span>
+          <span style={{ fontSize: 12, color: "#333", cursor: "pointer" }}>Terms of Service</span>
+          <span style={{ fontSize: 12, color: "#333", cursor: "pointer" }}>Contact</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+/* ─── History Screen ────────────────────────────────────────── */
+function HistoryScreen({ history, isDesktop }) {
+  return (
+    <div style={{ padding: isDesktop ? "32px 36px 40px" : "24px 20px 0" }}>
+      <SectionLabel>Medical History</SectionLabel>
+      <div style={{ fontFamily: "Playfair Display", fontSize: 24, fontWeight: 900, color: T.text, marginBottom: 20 }}>
+        Your <span style={{ color: T.red }}>Records</span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 20 }}>
+        <div>
+          <SectionLabel>Triage Reports</SectionLabel>
+          {(!history.reports || history.reports.length === 0) && <div style={{ fontSize: 13, color: T.textXs }}>No reports yet</div>}
+          {history.reports?.map((r, i) => (
+            <Card key={i} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{r.triageData.label}</div>
+                <div style={{ fontSize: 11, color: T.textXs }}>{new Date(r.createdAt).toLocaleDateString()}</div>
+              </div>
+              <div style={{ fontSize: 13, color: T.textMd, lineHeight: 1.5 }}>{r.triageData.explanation}</div>
+            </Card>
+          ))}
+        </div>
+        <div>
+          <SectionLabel>Skin Scans</SectionLabel>
+          {(!history.scans || history.scans.length === 0) && <div style={{ fontSize: 13, color: T.textXs }}>No scans yet</div>}
+          {history.scans?.map((s, i) => (
+            <Card key={i} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{s.analysis.label}</div>
+                <div style={{ fontSize: 11, color: T.textXs }}>{new Date(s.createdAt).toLocaleDateString()}</div>
+              </div>
+              <div style={{ fontSize: 13, color: T.textMd }}>Confidence: {s.analysis.confidence}</div>
+              <div style={{ fontSize: 12, color: T.textXs, marginTop: 4 }}>{s.analysis.action}</div>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -163,6 +371,57 @@ function DesktopSidebar({ screen, setScreen, navItems }) {
 export default function MedicalTriageApp() {
   const { width } = useWindowSize();
   const isDesktop = width >= 1024;
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+    if (token && storedUser) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(storedUser));
+      fetchHistory(token);
+    }
+  }, []);
+
+  const fetchHistory = async (token) => {
+    try {
+      const [scanRes, reportRes] = await Promise.all([
+        fetch("http://localhost:5000/api/scans", { headers: { "Authorization": `Bearer ${token}` } }),
+        fetch("http://localhost:5000/api/triage", { headers: { "Authorization": `Bearer ${token}` } })
+      ]);
+      const scanData = await scanRes.json();
+      const reportData = await reportRes.json();
+      setHistory({ scans: scanData.data || [], reports: reportData.data || [] });
+    } catch (e) { console.error("History Load Error:", e); }
+  };
+
+  const handleBackendLogin = async (credential) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
+        setIsAuthenticated(true);
+        fetchHistory(data.token);
+      }
+    } catch (error) { console.error(error); }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setIsAuthenticated(false);
+    setUser(null);
+    setScreen(SCREENS.HOME);
+  };
 
   const [screen, setScreen] = useState(SCREENS.HOME);
   const [messages, setMessages] = useState([
@@ -185,8 +444,122 @@ export default function MedicalTriageApp() {
   const chatEndRef = useRef(null);
   const vRef = useRef(null);
   const sRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  const handleStartAudio = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'cough.webm');
+        formData.append('heartRate', vitals.hr || 0);
+        formData.append('respiratoryRate', vitals.rr || 0);
+
+        setSound(s => ({ ...s, recording: false, analyzing: true }));
+
+        try {
+          const res = await fetch("http://localhost:5000/api/vitals", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            setSound({ recording: false, progress: 100, done: true, result: { type: "Audio Saved", detail: "Cough recording uploaded for analysis.", color: T.red } });
+          }
+        } catch (err) {
+          console.error("Audio Upload Error:", err);
+        }
+      };
+
+      mediaRecorderRef.current.start();
+      setSound({ recording: true, progress: 0, done: false, result: null });
+      
+      let p = 0;
+      const interval = setInterval(() => {
+        p += 5;
+        setSound(s => ({ ...s, progress: p }));
+        if (p >= 100) {
+          clearInterval(interval);
+          handleStopAudio();
+        }
+      }, 250);
+      sRef.current = interval;
+
+    } catch (err) {
+      console.error("Microphone Access Error:", err);
+      alert("Could not access microphone.");
+    }
+  };
+
+  const handleStopAudio = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      clearInterval(sRef.current);
+    }
+  };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const handleCapturePhoto = async () => {
+    const video = document.getElementById('camera-feed');
+    if (!video) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    const stream = video.srcObject;
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
+    setCamera(c => ({ ...c, captured: true, analyzing: true }));
+
+    canvas.toBlob(async (blob) => {
+      const formData = new FormData();
+      formData.append('scan', blob, 'scan.jpg');
+
+      try {
+        const res = await fetch("http://localhost:5000/api/scans/upload", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${localStorage.getItem('token')}`
+          },
+          body: formData
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setCamera(c => ({ ...c, analyzing: false, result: data.data.analysis }));
+        } else {
+          alert("Analysis failed: " + data.message);
+          setCamera(c => ({ ...c, captured: false, active: false, analyzing: false }));
+        }
+      } catch (err) {
+        console.error("Upload Error:", err);
+        alert("Server error during analysis.");
+        setCamera(c => ({ ...c, captured: false, active: false, analyzing: false }));
+      }
+    }, 'image/jpeg');
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -203,23 +576,48 @@ Ask about onset, severity 1-10, duration, associated factors. After 3-4 exchange
 <TRIAGE>{"tier":1|2|3,"label":"GO TO ER NOW"|"SEE DOCTOR (24-48 hrs)"|"MANAGE AT HOME","confidence":"high"|"moderate"|"low","topSymptoms":["s1","s2","s3"],"explanation":"plain language reason","caveats":"what system cannot assess"}</TRIAGE>
 Until ready, ask one focused follow-up question. Be warm, concise, never diagnose.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: sys, messages: msgs.map(m => ({ role: m.role, content: m.content })) })
+      const res = await fetch("http://localhost:5000/api/triage/chat", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ messages: msgs, patientProfile: patient })
       });
       const data = await res.json();
-      const txt = data.content?.[0]?.text || "Connection issue — please try again.";
+      if (!res.ok) {
+        throw new Error(data.message || "Server Error");
+      }
+      const txt = data.content || "I'm having trouble thinking right now. Please try again.";
       const match = txt.match(/<TRIAGE>(.*?)<\/TRIAGE>/s);
       if (match) {
         try {
           const parsed = JSON.parse(match[1]);
           setTriageResult(parsed);
+          
+          await fetch("http://localhost:5000/api/triage/process", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ messages: [...msgs, { role: "assistant", content: txt }], patientProfile: patient })
+          });
+
           const clean = txt.replace(/<TRIAGE>.*?<\/TRIAGE>/s, "").trim();
           setMessages([...msgs, { role: "assistant", content: clean || "Here is your triage assessment." }]);
           setTimeout(() => setScreen(SCREENS.RESULT), 1200);
-        } catch { setMessages([...msgs, { role: "assistant", content: txt }]); }
-      } else { setMessages([...msgs, { role: "assistant", content: txt }]); }
-    } catch { setMessages([...msgs, { role: "assistant", content: "Connection issue — please try again." }]); }
+        } catch (err) { 
+          console.error("Triage Parse Error:", err);
+          setMessages([...msgs, { role: "assistant", content: txt }]); 
+        }
+      } else { 
+        setMessages([...msgs, { role: "assistant", content: txt }]); 
+      }
+    } catch (err) { 
+      console.error("Chat API Error:", err);
+      setMessages([...msgs, { role: "assistant", content: `Error: ${err.message || "Could not connect to server"}` }]); 
+    }
     setLoading(false);
   };
 
@@ -257,6 +655,7 @@ Until ready, ask one focused follow-up question. Be warm, concise, never diagnos
     { id: SCREENS.CHAT, icon: Ico.chat, label: "Symptom Triage" },
     { id: SCREENS.VITALS, icon: Ico.pulse, label: "Vital Signs" },
     { id: SCREENS.CAMERA, icon: Ico.cam, label: "Skin Scanner" },
+    { id: SCREENS.HISTORY, icon: Ico.file, label: "History" },
     { id: SCREENS.REMINDERS, icon: Ico.bell, label: "Follow-Up" },
   ];
 
@@ -264,22 +663,32 @@ Until ready, ask one focused follow-up question. Be warm, concise, never diagnos
     screen, setScreen, patient, setPatient, profileDone, setProfileDone,
     profileStep, setProfileStep, triageResult, vitals, tierMeta,
     messages, input, setInput, loading, sendMessage, chatEndRef,
-    camera, setCamera, sound, startSound, setSound, startVitals,
+    camera, setCamera, sound, setSound, startVitals,
     reminders, setReminders, activeReminder, setActiveReminder,
     reminderNote, setReminderNote, reported: reportShared, setReported: setReportShared,
+    history,
     isDesktop,
+    capturePhoto: handleCapturePhoto,
+    cameraActive: camera.active,
+    startAudio: handleStartAudio,
+    stopAudio: handleStopAudio
   };
 
   const renderScreen = () => {
-    if (screen === SCREENS.HOME) return <HomeScreen {...screenProps} />;
+    if (screen === SCREENS.HOME) return <HomeScreen {...screenProps} user={user} />;
     if (screen === SCREENS.CHAT) return <ChatScreen {...screenProps} />;
     if (screen === SCREENS.CAMERA) return <CameraScreen {...screenProps} />;
     if (screen === SCREENS.VITALS) return <VitalsScreen {...screenProps} />;
     if (screen === SCREENS.REPORT) return <ReportScreen {...screenProps} />;
     if (screen === SCREENS.REMINDERS) return <RemindersScreen {...screenProps} />;
     if (screen === SCREENS.RESULT && triageResult) return <ResultScreen {...screenProps} />;
+    if (screen === SCREENS.HISTORY) return <HistoryScreen {...screenProps} />;
     return null;
   };
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={handleBackendLogin} />;
+  }
 
   /* ── DESKTOP LAYOUT ── */
   if (isDesktop) {
@@ -290,7 +699,7 @@ Until ready, ask one focused follow-up question. Be warm, concise, never diagnos
         </div>
         <EmergencyModal redFlag={redFlag} onDismiss={() => setRedFlag(null)} />
         <div style={{ zIndex: 1, position: "relative" }}>
-          <DesktopSidebar screen={screen} setScreen={setScreen} navItems={navItems} />
+          <DesktopSidebar screen={screen} setScreen={setScreen} navItems={navItems} handleLogout={handleLogout} />
         </div>
         <div style={{ flex: 1, overflowY: "auto", height: "100vh", background: "rgba(10,15,30,0.55)", backdropFilter: "blur(6px)", paddingBottom: 40, zIndex: 1, position: "relative" }}>
           {renderScreen()}
@@ -310,13 +719,16 @@ Until ready, ask one focused follow-up question. Be warm, concise, never diagnos
         {/* Mobile Header */}
         <div style={{ padding: "16px 20px 13px", background: T.white, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontFamily: "Playfair Display", fontSize: 20, fontWeight: 900, background: `linear-gradient(135deg,${T.red},${T.pink})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1.1 }}>MediGuard</div>
-              <div style={{ fontSize: 10, color: T.textXs, letterSpacing: 1.6, textTransform: "uppercase", marginTop: 2, fontWeight: 600 }}>AI Triage Companion</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="hpulse" style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg,${T.red},${T.redDk})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0, boxShadow: `0 4px 12px ${T.red}40` }}>
+                {Ico.heart}
+              </div>
+              <div>
+                <div style={{ fontFamily: "Playfair Display", fontSize: 18, fontWeight: 900, background: `linear-gradient(135deg,${T.red},${T.pink})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1.1 }}>MediGuard</div>
+                <div style={{ fontSize: 9, color: T.textXs, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>AI Triage</div>
+              </div>
             </div>
-            <div className="hpulse" style={{ width: 38, height: 38, borderRadius: "50%", background: `linear-gradient(135deg,${T.red},${T.redDk})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0, boxShadow: `0 4px 12px ${T.red}40` }}>
-              {Ico.heart}
-            </div>
+            <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 10px", color: T.textXs, fontSize: 11, fontWeight: 600 }}>Logout</button>
           </div>
         </div>
         {/* Mobile Content */}
@@ -345,7 +757,7 @@ Until ready, ask one focused follow-up question. Be warm, concise, never diagnos
 }
 
 /* ─── Home Screen ────────────────────────────────────────────── */
-function HomeScreen({ setScreen, patient, setPatient, profileDone, setProfileDone, profileStep, setProfileStep, triageResult, vitals, tierMeta, isDesktop }) {
+function HomeScreen({ setScreen, patient, setPatient, profileDone, setProfileDone, profileStep, setProfileStep, triageResult, vitals, tierMeta, isDesktop, user }) {
   const steps = [
     { key: "age", label: "How old are you?", placeholder: "e.g. 45", type: "number" },
     { key: "sex", label: "Biological sex?", placeholder: "Male / Female / Other", type: "text" },
@@ -370,7 +782,7 @@ function HomeScreen({ setScreen, patient, setPatient, profileDone, setProfileDon
           <div style={{ position: "absolute", bottom: -30, right: 30, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,.04)", pointerEvents: "none" }}></div>
           <Pill color="#67e8f9" style={{ background: "rgba(103,232,249,.15)", color: "#67e8f9", marginBottom: 14, border: "1px solid rgba(103,232,249,0.2)" }}>Smart Medical Triage</Pill>
           <div style={{ fontFamily: "Playfair Display", fontSize: 28, fontWeight: 900, color: "#fff", lineHeight: 1.2, marginBottom: 12 }}>
-            How are you feeling today?
+            Welcome, {user?.name?.split(" ")[0] || "User"}
           </div>
           <div style={{ fontSize: 14, color: "rgba(255,255,255,.75)", lineHeight: 1.7, marginBottom: 24 }}>
             Describe your symptoms and receive instant AI-powered triage guidance — from home care to emergency alerts.
@@ -525,25 +937,26 @@ function ChatScreen({ messages, input, setInput, loading, sendMessage, chatEndRe
 }
 
 /* ─── Camera Screen ──────────────────────────────────────────── */
-function CameraScreen({ camera, setCamera, isDesktop }) {
+function CameraScreen({ camera, setCamera, isDesktop, capturePhoto, cameraActive }) {
   const [tip, setTip] = useState(0);
   const TIPS = ["Hold 6–8 inches from the affected area", "Ensure even natural or indoor lighting", "Keep the camera steady — avoid motion blur", "Centre the affected area within the frame"];
-  useEffect(() => { const t = setInterval(() => setTip(p => (p + 1) % TIPS.length), 2800); return () => clearInterval(t); }, []);
+  
+  useEffect(() => {
+    if (cameraActive && !camera.captured) {
+      const startCamera = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          const video = document.getElementById('camera-feed');
+          if (video) video.srcObject = stream;
+        } catch (err) {
+          console.error("Camera Access Error:", err);
+        }
+      };
+      startCamera();
+    }
+  }, [cameraActive, camera.captured]);
 
-  const capture = () => {
-    setCamera(c => ({ ...c, captured: true, active: true }));
-    setTimeout(() => {
-      setCamera(c => ({ ...c, analyzing: true }));
-      setTimeout(() => {
-        const opts = [
-          { confidence: "Low", label: "Possible skin irritation or mild dermatitis", action: "Consider a dermatologist consultation for assessment.", color: "#d97706" },
-          { confidence: "Moderate", label: "May be consistent with eczema or contact rash", action: "See a doctor within 48 hours for evaluation.", color: "#ea580c" },
-          { confidence: "High", label: "Appears to be a minor wound — low infection risk", action: "Clean and dress at home. Monitor for signs of infection.", color: "#16a34a" },
-        ];
-        setCamera(c => ({ ...c, analyzing: false, result: opts[Math.floor(Math.random() * opts.length)] }));
-      }, 3000);
-    }, 400);
-  };
+  useEffect(() => { const t = setInterval(() => setTip(p => (p + 1) % TIPS.length), 2800); return () => clearInterval(t); }, []);
 
   return (
     <div style={{ padding: isDesktop ? "32px 36px 40px" : "24px 20px 0" }}>
@@ -581,11 +994,16 @@ function CameraScreen({ camera, setCamera, isDesktop }) {
       {camera.active && !camera.captured && !camera.result && (
         <div className="fadeUp" style={{ maxWidth: 500 }}>
           <div style={{ position: "relative", background: "#0f0f14", borderRadius: 18, overflow: "hidden", aspectRatio: "4/3", marginBottom: 16 }}>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#14142a,#1e1b3a)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.06)" }}>
-              <svg width="60" height="60" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="13" r="5" /><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /></svg>
-            </div>
+            {/* Real Video Feed */}
+            <video 
+              id="camera-feed" 
+              autoPlay 
+              playsInline 
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            
             <div style={{ position: "absolute", left: 0, right: 0, height: 1.5, background: `linear-gradient(90deg,transparent,${T.red},transparent)`, animation: "scanLine 2.2s linear infinite", opacity: .85 }}></div>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
               <div style={{ width: 155, height: 155, position: "relative" }}>
                 {[{ top: -1, left: -1, bt: 2.5, bl: 2.5 }, { top: -1, right: -1, bt: 2.5, br: 2.5 }, { bottom: -1, left: -1, bb: 2.5, bl: 2.5 }, { bottom: -1, right: -1, bb: 2.5, br: 2.5 }].map((p, i) => (
                   <div key={i} style={{
@@ -596,17 +1014,13 @@ function CameraScreen({ camera, setCamera, isDesktop }) {
                     top: p.top, bottom: p.bottom, left: p.left, right: p.right
                   }}></div>
                 ))}
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "rgba(255,255,255,.4)", textAlign: "center", letterSpacing: .4, lineHeight: 1.5 }}>
-                  Centre affected<br />area here
-                </div>
               </div>
             </div>
-            <div style={{ position: "absolute", top: "50%", left: 10, color: `${T.pink}cc`, animation: "bounceX 1.6s ease infinite", lineHeight: 0 }}>{Ico.right}</div>
           </div>
           <div style={{ background: T.pinkLt, border: `1px solid ${T.borderDk}`, borderRadius: 11, padding: "11px 14px", marginBottom: 14, minHeight: 42, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
             <div key={tip} className="fadeIn" style={{ fontSize: 13, color: T.textMd, fontWeight: 500 }}>{TIPS[tip]}</div>
           </div>
-          <PrimaryBtn onClick={capture} style={{ width: "100%" }}>{Ico.cam} Capture Photo</PrimaryBtn>
+          <PrimaryBtn onClick={capturePhoto} style={{ width: "100%" }}>{Ico.cam} Capture Photo</PrimaryBtn>
         </div>
       )}
 
@@ -644,7 +1058,7 @@ function CameraScreen({ camera, setCamera, isDesktop }) {
 }
 
 /* ─── Vitals Screen ──────────────────────────────────────────── */
-function VitalsScreen({ vitals, startVitals, sound, startSound, setSound, isDesktop }) {
+function VitalsScreen({ vitals, startVitals, sound, setSound, isDesktop, startAudio, stopAudio }) {
   return (
     <div style={{ padding: isDesktop ? "32px 36px 40px" : "24px 20px 0" }}>
       <SectionLabel>Vital Signs Monitor</SectionLabel>
@@ -723,7 +1137,7 @@ function VitalsScreen({ vitals, startVitals, sound, startSound, setSound, isDesk
               <div style={{ fontSize: 12, color: T.textXs, lineHeight: 1.7, marginBottom: 20 }}>
                 Detects dry cough, wet cough, wheezing, or abnormal breathing using your microphone.
               </div>
-              <PrimaryBtn onClick={startSound} style={{ margin: "0 auto" }}>{Ico.mic} Record Cough / Breath</PrimaryBtn>
+              <PrimaryBtn onClick={startAudio} style={{ margin: "0 auto" }}>{Ico.mic} Record Cough / Breath</PrimaryBtn>
             </div>
           )}
           {sound.recording && (
@@ -737,6 +1151,7 @@ function VitalsScreen({ vitals, startVitals, sound, startSound, setSound, isDesk
                 <div style={{ background: `linear-gradient(90deg,${T.red},${T.pink})`, height: 5, borderRadius: 7, width: `${sound.progress}%`, transition: "width .1s linear" }}></div>
               </div>
               <div style={{ fontSize: 13, color: T.red, fontWeight: 600 }}>Recording… {sound.progress}%</div>
+              <GhostBtn onClick={stopAudio} style={{ marginTop: 10, padding: "8px 16px", fontSize: 12 }}>Stop Recording</GhostBtn>
             </div>
           )}
           {sound.done && sound.result && (
