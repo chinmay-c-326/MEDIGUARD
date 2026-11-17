@@ -387,47 +387,6 @@ The `FloatingLines` component (Three.js WebGL canvas) accepts the following prop
 
 ---
 
-## Team Members
-
-<table>
-  <tr>
-    <th>Name</th>
-    <th>Role</th>
-    <th>Contributions</th>
-  </tr>
-  <tr>
-    <td><strong>Hrishikesh Ganji</strong></td>
-    <td>Team Lead / ML Engineer</td>
-    <td>Project leadership and coordination, machine learning model architecture and development, AI triage logic design, overall system integration and technical decision-making</td>
-  </tr>
-  <tr>
-    <td><strong>Veer Dodiya</strong></td>
-    <td>Full Stack Developer</td>
-    <td>End-to-end application development, React component architecture, Three.js WebGL background implementation, liquid glass UI theming, backend API integration, deployment pipeline</td>
-  </tr>
-  <tr>
-    <td><strong>Nirjal Jagtap</strong></td>
-    <td>Frontend Developer</td>
-    <td>UI component development, responsive layout implementation, animation and interaction design, cross-browser testing and optimization</td>
-  </tr>
-  <tr>
-    <td><strong>Keval Shah</strong></td>
-    <td>Frontend Developer</td>
-    <td>Feature screen development, form handling and validation, mobile-first design implementation, accessibility improvements</td>
-  </tr>
-  <tr>
-    <td><strong>Dev Shah</strong></td>
-    <td>ML Engineer</td>
-    <td>Symptom classification model development, cough and breath sound analysis algorithms, vital signs detection logic, AI response pipeline</td>
-  </tr>
-  <tr>
-    <td><strong>Chinmay Chopade</strong></td>
-    <td>PPT / Docs / Presentation / UI-UX</td>
-    <td>Presentation deck creation and delivery, project documentation, user experience research and wireframing, visual design direction and branding</td>
-  </tr>
-</table>
-
----
 
 ## Disclaimer
 
